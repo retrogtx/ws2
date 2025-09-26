@@ -41,23 +41,8 @@ cd frontend && bun run dev
 ```
 
 ## Overall Flow
+![Chat app demo screenshot](./image.png)
 
-┌─────────────────┐    HTTP POST     ┌─────────────────┐    AI API Call    ┌─────────────────┐
-│   Frontend      │ ──────────────► │    Backend      │ ─────────────────► │   Anthropic     │
-│                 │                 │                 │                    │   Claude API    │
-│ - React + AI SDK│ ◄────────────── │ - Express.js    │ ◄───────────────── │                 │
-│ - useChat()     │  WebSocket      │ - streamText()  │   Streamed Text    │                 │
-│ - Centrifugo    │  Stream         │ - Centrifugo    │                    │                 │
-│   Transport     │                 │   Publishing    │                    │                 │
-└─────────────────┘                 └─────────────────┘                    └─────────────────┘
-         │                                    │
-         │                                    │
-         ▼                                    ▼
-┌─────────────────┐                 ┌─────────────────┐
-│   Centrifugo    │ ◄────────────── │   Centrifugo    │
-│   WebSocket     │   Real-time     │   HTTP API      │
-│   Server        │   Streaming     │   Publishing    │
-└─────────────────┘                 └─────────────────┘
 
 1. User sends message via HTTP POST to `/api/chat`
 2. Backend generates channel and messageId, responds immediately
