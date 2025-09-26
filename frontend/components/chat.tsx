@@ -3,7 +3,6 @@
 import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Send, User, Bot } from "lucide-react";
@@ -36,18 +35,17 @@ export function Chat() {
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    document.documentElement.classList.add('dark');
-  }, []);
+  const resetTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +53,22 @@ export function Chat() {
 
     sendMessage({ text: input });
     setInput('');
+    resetTextareaHeight();
   };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    
+    const textarea = e.target;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 128)}px`;
+  };
+
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+    
+    scrollToBottom();
+  }, [messages]);
 
   return (
     <div className="flex flex-col h-screen max-w-4xl mx-auto bg-background">
@@ -64,7 +77,7 @@ export function Chat() {
           <div>
             <h1 className="text-2xl font-semibold text-foreground">AI Chat Assistant</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Powered by Claude with real-time streaming
+              with real-time streaming
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -161,11 +174,12 @@ export function Chat() {
       <div className="border-t bg-card px-4 sm:px-6 py-4">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="flex gap-3">
-            <Input
+            <textarea
+              ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               placeholder="Type your message..."
-              className="flex-1 min-h-[44px]"
+              className="flex-1 min-h-[44px] max-h-32 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={status !== 'ready'}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -173,6 +187,7 @@ export function Chat() {
                   handleSubmit(e);
                 }
               }}
+              rows={1}
             />
             <Button
               type="submit"

@@ -83,7 +83,7 @@ export class CentrifugoChatTransport implements ChatTransport<UIMessage<UIDataTy
 
         listener = (ctx: PublicationContext) => {
           const data = ctx.data;
-          if (data.messageId !== targetMessageId) return; // Ignore other messages
+          if (data.messageId !== targetMessageId) return; 
           
           console.log(`Received data for messageId: ${targetMessageId}`, data);
           

@@ -186,10 +186,6 @@ app.get("/api/centrifugo-token", async (req: Request, res: Response) => {
   }
 });
 
-app.get("/health", (_req: Request, res: Response) => {
-  res.status(200).json({ ok: true });
-});
-
 app.listen(PORT, () => {
   console.log(`Backend listening on http://localhost:${PORT}`);
 });
