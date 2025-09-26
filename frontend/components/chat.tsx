@@ -100,7 +100,7 @@ export function Chat() {
           )}
 
               {messages.map((message) => {
-                const messageText = message.parts.map((part: any) =>
+                const messageText = message.parts.map((part: { type: string; text?: string }) =>
                   part.type === 'text' ? part.text : ''
                 ).join('');
                 

@@ -36,7 +36,7 @@ app.use(cors({
 app.use(express.json());
 
 function readCentrifugoConfig(): CentrifugoConfig {
-  const configPath = path.resolve("/Users/amrit/Code/ws2/config.json");
+  const configPath = path.resolve("./config.json");
   const raw = readFileSync(configPath, "utf8");
   return JSON.parse(raw) as CentrifugoConfig;
 }

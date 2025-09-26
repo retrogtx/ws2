@@ -1,10 +1,10 @@
-import { Centrifuge, PublicationContext } from 'centrifuge';
+import { Centrifuge, PublicationContext, Subscription } from 'centrifuge';
 import { ChatTransport, UIMessage, UIMessageChunk, UIDataTypes, UITools, ChatRequestOptions } from 'ai';
 
 export class CentrifugoChatTransport implements ChatTransport<UIMessage<UIDataTypes, UITools>> {
   private centrifuge: Centrifuge | null = null;
-  private subscriptions = new Map<string, any>();
-  private listeners = new Map<string, Set<(data: any) => void>>();
+  private subscriptions = new Map<string, Subscription>();
+  private listeners = new Map<string, Set<(ctx: PublicationContext) => void>>();
 
   constructor(
     private config: {
