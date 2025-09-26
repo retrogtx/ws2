@@ -1,0 +1,30 @@
+{
+  "client": {
+    "token": {
+      "hmac_secret_key": "bfRrh3j8rTUflLF71mLllEziA-R3zCJUsW9pBIM3xj9wi5S38h6GklrgPkbskM7q3x4ckxYotEF3gmD55j3H1A"
+    },
+    "allowed_origins": ["http://localhost:5173", "http://localhost:3000"]
+  },
+  "admin": {
+    "enabled": false,
+    "password": "HftxNRgF2svOIXIp4O0qMw",
+    "secret": "EJ4N9j0MwlhfGwdws1QF_jg_eIgaq_OGHgKx-TM8-wi8QWYGlJwjZa6uxSUEKNfBkXjLMVB03xMkxfA0dWx6Pg"
+  },
+  "http_api": {
+    "key": "FmvS5shbxl_N1H7ban7if9NouwkwNkagFpF5YwYmPVR0c-tqZndJuV-UtKvn6x-gz05D25mGiew3us7OgHUF6A"
+  },
+  "channel": {
+    "namespaces": [
+      {
+        "name": "chat",
+        "allow_subscribe_for_client": true,
+        "allow_presence_for_client": true,
+        "allow_history_for_client": true,
+        "presence": true,
+        "join_leave": true,
+        "history_size": 100,
+        "history_ttl": "1h"
+      }
+    ]
+  }
+}
