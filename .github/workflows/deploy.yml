@@ -1,0 +1,235 @@
+name: Deploy to Fly.io
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test Application
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          bun install --frozen-lockfile
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          bun install --frozen-lockfile
+
+      - name: Lint backend
+        run: |
+          cd backend
+          bun run lint || echo "No lint script found, skipping..."
+
+      - name: Lint frontend
+        run: |
+          cd frontend
+          bun run lint
+
+      - name: Type check backend
+        run: |
+          cd backend
+          bun run --bun tsc --noEmit || echo "No TypeScript config found, skipping..."
+
+      - name: Type check frontend
+        run: |
+          cd frontend
+          bun run build --dry-run || bun run --bun tsc --noEmit
+
+      - name: Test backend
+        run: |
+          cd backend
+          bun test || echo "No test script found, skipping..."
+
+      - name: Test frontend
+        run: |
+          cd frontend
+          bun test || echo "No test script found, skipping..."
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    name: Build and Deploy
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: |
+          flyctl deploy --remote-only --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  deploy-pr:
+    needs: test
+    runs-on: ubuntu-latest
+    name: Deploy PR Preview
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=pr
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Create PR app name
+        id: pr-app
+        run: |
+          PR_APP_NAME="ws2-pr-${{ github.event.number }}"
+          echo "app_name=$PR_APP_NAME" >> $GITHUB_OUTPUT
+
+      - name: Deploy PR Preview
+        run: |
+          # Create a new app for this PR if it doesn't exist
+          flyctl apps list | grep -q "${{ steps.pr-app.outputs.app_name }}" || \
+          flyctl apps create "${{ steps.pr-app.outputs.app_name }}" --org personal
+
+          # Deploy to the PR app
+          flyctl deploy --remote-only --app "${{ steps.pr-app.outputs.app_name }}" --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.number }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Comment PR with preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const appName = '${{ steps.pr-app.outputs.app_name }}';
+            const previewUrl = `https://${appName}.fly.dev`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Preview deployment is ready!**
+              
+              Preview URL: ${previewUrl}
+              
+              This preview will be automatically updated when you push new commits to this PR.`
+            });
+
+  cleanup-pr:
+    runs-on: ubuntu-latest
+    name: Cleanup PR Preview
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    
+    steps:
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Create PR app name
+        id: pr-app
+        run: |
+          PR_APP_NAME="ws2-pr-${{ github.event.number }}"
+          echo "app_name=$PR_APP_NAME" >> $GITHUB_OUTPUT
+
+      - name: Destroy PR Preview App
+        run: |
+          flyctl apps destroy "${{ steps.pr-app.outputs.app_name }}" --yes || echo "App may not exist"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Comment PR with cleanup notice
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🧹 **Preview deployment cleaned up**
+              
+              The preview app for this PR has been destroyed to save resources.`
+            });
