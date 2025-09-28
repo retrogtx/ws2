@@ -8,15 +8,9 @@ import { streamText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 
 interface CentrifugoConfig {
-  client: {
-    token: {
-      hmac_secret_key: string;
-    };
-    allowed_origins: string[];
-  };
-  http_api: {
-    key: string;
-  };
+  token_hmac_secret_key: string;
+  api_key: string;
+  allowed_origins: string[];
 }
 
 interface ChatRequestBody {
@@ -30,7 +24,11 @@ const app = express();
 const PORT = Number(process.env.PORT || 8787);
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'],  
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:5173',
+    'https://ws2.fly.dev'
+  ],  
   credentials: true
 }));
 app.use(express.json());
@@ -51,7 +49,7 @@ function generateCentrifugoToken(userId: string = 'anonymous'): string {
 
   const data = `${encodedHeader}.${encodedPayload}`;
 
-  const hmac = createHmac('sha256', config.client.token.hmac_secret_key);
+  const hmac = createHmac('sha256', config.token_hmac_secret_key);
   hmac.update(data);
   const signature = hmac.digest('base64url');
 
@@ -69,8 +67,8 @@ async function centrifugoPublish(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `apikey ${config.http_api.key}`,
-      "X-API-Key": config.http_api.key,
+      "Authorization": `apikey ${config.api_key}`,
+      "X-API-Key": config.api_key,
     },
     body: JSON.stringify({
       channel,

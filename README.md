@@ -1,6 +1,6 @@
-llm chat with centrifugo websockets
+LLM chat with centrifugo websockets
 
-todo; make two llms talk with eachother
+TODO: Make two LLMs talk with eachother
 
 ## Setup
 
@@ -40,6 +40,15 @@ cd backend && bun run dev
 cd frontend && bun run dev
 ```
 
+## Run with docker
+```bash
+docker build -t ws2 .
+```
+
+```bash
+./run.sh
+```
+
 ## Overall Flow
 ![Chat app demo screenshot](./image.png)
 
@@ -56,3 +65,4 @@ cd frontend && bun run dev
 - `frontend/lib/centrifugo-transport.ts` - Custom WebSocket transport layer
 - `backend/index.ts` - Express server with AI integration
 - `config.json` - Centrifugo configuration
+- `Dockerfile` - Multi-stage Docker build with nginx, redis, centrifugo
